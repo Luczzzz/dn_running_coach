@@ -1,0 +1,15 @@
+services:
+  dn-running-coach:
+    build: .
+    container_name: dn-running-coach
+    restart: unless-stopped
+    ports:
+      - "8787:8787"
+    environment:
+      HOST: "0.0.0.0"
+      PORT: "8787"
+      RUNNING_COACH_DATA_DIR: "/data/running-coach"
+      RUNNING_COACH_DB: "/data/running-coach/events/running-coach.sqlite"
+      COROS_MCP_ENDPOINT: "https://mcpcn.coros.com/mcp"
+    volumes:
+      - ./data:/data/running-coach

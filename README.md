@@ -84,7 +84,34 @@ curl http://127.0.0.1:8787/health
 {"ok":true,"service":"running-coach"}
 ```
 
-## NAS 部署建议
+## Docker Compose 部署
+
+推荐在 NAS 上使用 Docker Compose 常驻运行：
+
+```bash
+docker compose up -d --build
+curl http://127.0.0.1:8787/health
+```
+
+默认挂载：
+
+```text
+./data:/data/running-coach
+```
+
+SQLite 默认路径：
+
+```text
+/data/running-coach/events/running-coach.sqlite
+```
+
+中国区 COROS MCP endpoint 默认配置为：
+
+```text
+https://mcpcn.coros.com/mcp
+```
+
+## NAS 直接部署建议
 
 推荐在 NAS 上以 Node 服务或 Docker 容器形式常驻运行。第一版最简单的方式是直接用 Node 运行。
 
