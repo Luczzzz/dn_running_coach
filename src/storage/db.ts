@@ -1,8 +1,13 @@
 import { DatabaseSync } from "node:sqlite";
+import { mkdirSync } from "node:fs";
+import { dirname } from "node:path";
 
 export type AppDatabase = DatabaseSync;
 
 export function createDatabase(path: string): AppDatabase {
+  if (path !== ":memory:") {
+    mkdirSync(dirname(path), { recursive: true });
+  }
   const db = new DatabaseSync(path);
   db.exec(`
     CREATE TABLE IF NOT EXISTS profiles (
