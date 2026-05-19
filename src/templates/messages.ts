@@ -1,4 +1,5 @@
 import type { TrainingAdvice } from "../domain/types.js";
+import type { RunReview } from "../domain/reviewService.js";
 
 export function formatAdvice(advice: TrainingAdvice): string {
   const lines = [
@@ -17,4 +18,14 @@ export function formatAdvice(advice: TrainingAdvice): string {
   }
 
   return lines.join("\n");
+}
+
+export function formatRunReview(review: RunReview): string {
+  return [
+    `跑后复盘：${review.matchedType}`,
+    review.summary,
+    `完成意图：${review.completedIntent ? "是" : "否"}`,
+    `偏差：${review.deviations.length ? review.deviations.join(" ") : "无明显偏差。"}`,
+    `下次调整：${review.nextAdjustment}`
+  ].join("\n");
 }

@@ -3,9 +3,10 @@ import { z } from "zod";
 import { CorosInitializationInputSchema } from "../domain/corosTypes.js";
 import { createDailyAdvice } from "../domain/adviceService.js";
 import { initializeProfile } from "../domain/initializeService.js";
-import { ManualEventSchema, UserProfileSchema } from "../domain/types.js";
+import { reviewRun } from "../domain/reviewService.js";
+import { ManualEventSchema, RunActivitySchema, TrainingTypeSchema, UserProfileSchema } from "../domain/types.js";
 import type { createRepositories } from "../storage/repositories.js";
-import { formatAdvice } from "../templates/messages.js";
+import { formatAdvice, formatRunReview } from "../templates/messages.js";
 
 type Repositories = ReturnType<typeof createRepositories>;
 
@@ -62,5 +63,19 @@ export async function registerCoachRoutes(app: FastifyInstance, repos: Repositor
       }
       throw error;
     }
+  });
+
+  app.post("/coach/run-review", async (request) => {
+    const body = z
+      .object({
+        plannedType: TrainingTypeSchema,
+        currentVdot: z.number().min(20).max(85),
+        run: RunActivitySchema,
+        recentContextNotes: z.array(z.string()).default([])
+      })
+      .parse(request.body);
+
+    const review = reviewRun(body);
+    return { ok: true, message: formatRunReview(review), review };
   });
 }
