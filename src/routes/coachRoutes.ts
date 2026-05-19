@@ -1,6 +1,8 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
+import { CorosInitializationInputSchema } from "../domain/corosTypes.js";
 import { createDailyAdvice } from "../domain/adviceService.js";
+import { initializeProfile } from "../domain/initializeService.js";
 import { ManualEventSchema, UserProfileSchema } from "../domain/types.js";
 import type { createRepositories } from "../storage/repositories.js";
 import { formatAdvice } from "../templates/messages.js";
@@ -8,6 +10,12 @@ import { formatAdvice } from "../templates/messages.js";
 type Repositories = ReturnType<typeof createRepositories>;
 
 export async function registerCoachRoutes(app: FastifyInstance, repos: Repositories) {
+  app.post("/coach/initialize", async (request) => {
+    const body = CorosInitializationInputSchema.parse(request.body);
+    const result = initializeProfile(repos, body);
+    return { ok: true, ...result };
+  });
+
   app.post("/coach/profile", async (request) => {
     const profile = UserProfileSchema.parse(request.body);
     repos.profile.save(profile);
