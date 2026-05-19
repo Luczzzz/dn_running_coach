@@ -1,6 +1,6 @@
 services:
   dn-running-coach:
-    build: .
+    image: ghcr.io/luczzzz/dn_running_coach:latest
     container_name: dn-running-coach
     restart: unless-stopped
     ports:
