@@ -1,0 +1,58 @@
+import type { FastifyInstance } from "fastify";
+import { z } from "zod";
+import { createDailyAdvice } from "../domain/adviceService.js";
+import { ManualEventSchema, UserProfileSchema } from "../domain/types.js";
+import type { createRepositories } from "../storage/repositories.js";
+import { formatAdvice } from "../templates/messages.js";
+
+type Repositories = ReturnType<typeof createRepositories>;
+
+export async function registerCoachRoutes(app: FastifyInstance, repos: Repositories) {
+  app.post("/coach/profile", async (request) => {
+    const profile = UserProfileSchema.parse(request.body);
+    repos.profile.save(profile);
+    return { ok: true, profile };
+  });
+
+  app.post("/coach/manual-event", async (request) => {
+    const body = z
+      .object({
+        userId: z.string().default("default"),
+        event: ManualEventSchema
+      })
+      .parse(request.body);
+
+    repos.events.addManual(body.event);
+    return { ok: true };
+  });
+
+  app.post("/coach/daily-advice", async (request, reply) => {
+    const body = z
+      .object({
+        userId: z.string().default("default"),
+        date: z.string(),
+        availableMinutes: z.number().int().positive(),
+        sleepQuality: z.enum(["good", "normal", "poor"]).optional(),
+        fatigue: z.enum(["low", "normal", "high"]).optional(),
+        hasOvertime: z.boolean().optional()
+      })
+      .parse(request.body);
+
+    try {
+      const advice = createDailyAdvice(repos, body.userId, {
+        date: body.date,
+        availableMinutes: body.availableMinutes,
+        sleepQuality: body.sleepQuality,
+        fatigue: body.fatigue,
+        hasOvertime: body.hasOvertime
+      });
+
+      return { ok: true, message: formatAdvice(advice), advice };
+    } catch (error) {
+      if (error instanceof Error && error.message.startsWith("Profile not found")) {
+        return reply.code(404).send({ ok: false, error: "PROFILE_NOT_FOUND", message: error.message });
+      }
+      throw error;
+    }
+  });
+}
