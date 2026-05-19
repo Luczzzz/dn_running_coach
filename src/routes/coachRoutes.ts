@@ -4,6 +4,7 @@ import { CorosInitializationInputSchema } from "../domain/corosTypes.js";
 import { createDailyAdvice } from "../domain/adviceService.js";
 import { initializeProfile } from "../domain/initializeService.js";
 import { reviewRun } from "../domain/reviewService.js";
+import { createCycleSummary, createMonthlySummary, createWeeklySummary } from "../domain/summaryService.js";
 import { ManualEventSchema, RunActivitySchema, TrainingTypeSchema, UserProfileSchema } from "../domain/types.js";
 import type { createRepositories } from "../storage/repositories.js";
 import { formatAdvice, formatRunReview } from "../templates/messages.js";
@@ -77,5 +78,47 @@ export async function registerCoachRoutes(app: FastifyInstance, repos: Repositor
 
     const review = reviewRun(body);
     return { ok: true, message: formatRunReview(review), review };
+  });
+
+  app.post("/coach/summary/weekly", async (request) => {
+    const body = z
+      .object({
+        periodStart: z.string(),
+        periodEnd: z.string(),
+        totalRunKm: z.number().nonnegative(),
+        qualitySessions: z.number().int().nonnegative(),
+        manualEvents: z.array(ManualEventSchema).default([])
+      })
+      .parse(request.body);
+    const message = createWeeklySummary(body);
+    return { ok: true, message };
+  });
+
+  app.post("/coach/summary/monthly", async (request) => {
+    const body = z
+      .object({
+        periodStart: z.string(),
+        periodEnd: z.string(),
+        totalRunKm: z.number().nonnegative(),
+        currentVdot: z.number().min(20).max(85),
+        manualEventCount: z.number().int().nonnegative()
+      })
+      .parse(request.body);
+    const message = createMonthlySummary(body);
+    return { ok: true, message };
+  });
+
+  app.post("/coach/summary/cycle", async (request) => {
+    const body = z
+      .object({
+        periodStart: z.string(),
+        periodEnd: z.string(),
+        cycleGoal: z.string(),
+        completedQualitySessions: z.number().int().nonnegative(),
+        currentVdot: z.number().min(20).max(85)
+      })
+      .parse(request.body);
+    const message = createCycleSummary(body);
+    return { ok: true, message };
   });
 }
