@@ -4,40 +4,14 @@ DN Running Coach 是一个面向个人长期使用的 Daniels 跑步 AI 助手�
 
 ## 复制即用：NAS Docker Compose
 
-在 NAS 上新建一个目录，例如 `dn-running-coach`，在里面创建 `docker-compose.yml`，复制下面内容即可：
-
-```yaml
-services:
-  dn-running-coach:
-    image: ghcr.io/luczzzz/dn_running_coach:latest
-    container_name: dn-running-coach
-    restart: unless-stopped
-    ports:
-      - "8787:8787"
-    environment:
-      HOST: "0.0.0.0"
-      PORT: "8787"
-      RUNNING_COACH_DATA_DIR: "/data/running-coach"
-      RUNNING_COACH_DB: "/data/running-coach/events/running-coach.sqlite"
-      COROS_MCP_ENDPOINT: "https://mcpcn.coros.com/mcp"
-    volumes:
-      - ./data:/data/running-coach
-```
-
-启动：
+当前还没有发布公开 GHCR 镜像，所以请先使用源码构建版部署。直接在 NAS 终端执行：
 
 ```bash
-docker compose up -d
-curl http://127.0.0.1:8787/health
+git clone https://github.com/Luczzzz/dn_running_coach.git
+cd dn_running_coach
 ```
 
-期望返回：
-
-```json
-{"ok":true,"service":"running-coach"}
-```
-
-如果镜像还没有发布到 GHCR，可以先使用源码构建版：
+仓库里已经包含 `docker-compose.yml`，内容如下。你也可以直接复制这段覆盖 NAS 上的 `docker-compose.yml`：
 
 ```yaml
 services:
@@ -57,12 +31,45 @@ services:
       - ./data:/data/running-coach
 ```
 
-源码构建版需要先把仓库 clone 到 NAS：
+启动：
 
 ```bash
-git clone https://github.com/Luczzzz/dn_running_coach.git
-cd dn_running_coach
 docker compose up -d --build
+curl http://127.0.0.1:8787/health
+```
+
+期望返回：
+
+```json
+{"ok":true,"service":"running-coach"}
+```
+
+如果你看到类似下面的错误：
+
+```text
+ghcr.io/luczzzz/dn_running_coach:latest denied
+```
+
+原因是 GHCR 镜像还没有发布，或者镜像不是公开包。请不要使用 `image: ghcr.io/luczzzz/dn_running_coach:latest`，改用上面的 `build: .` 版本。
+
+将来发布公开镜像后，才可以改成：
+
+```yaml
+services:
+  dn-running-coach:
+    image: ghcr.io/luczzzz/dn_running_coach:latest
+    container_name: dn-running-coach
+    restart: unless-stopped
+    ports:
+      - "8787:8787"
+    environment:
+      HOST: "0.0.0.0"
+      PORT: "8787"
+      RUNNING_COACH_DATA_DIR: "/data/running-coach"
+      RUNNING_COACH_DB: "/data/running-coach/events/running-coach.sqlite"
+      COROS_MCP_ENDPOINT: "https://mcpcn.coros.com/mcp"
+    volumes:
+      - ./data:/data/running-coach
 ```
 
 ## 持久化数据
@@ -304,3 +311,4 @@ npm test
 npm run build
 npm run dev
 ```
+
