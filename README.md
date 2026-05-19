@@ -1,52 +1,33 @@
-# DN Running Coach
+﻿# DN Running Coach
 
-DN Running Coach 是一个面向个人长期使用的 Daniels 跑步 AI 助手。推荐部署在 NAS 上，由 OpenClaw 负责微信 / QQ 对话入口和 COROS MCP 数据读取，本服务负责训练逻辑、结构化记忆、VDOT 估算、每日建议、跑后复盘和阶段总结。
+DN Running Coach 是一个面向个人长期使用的 Daniels 跑步 AI 助手。推荐部署在 NAS 上，由 OpenClaw 负责微信 / QQ 对话、初始化问答和 COROS MCP 数据读取，本服务负责训练逻辑、结构化记忆、VDOT 估算、每日建议、跑后复盘和阶段总结。
 
-## 当前能力
+## 复制即用：NAS Docker Compose
 
-- Docker Compose 部署
-- 中国区 COROS MCP endpoint 配置：`https://mcpcn.coros.com/mcp`
-- 用户档案初始化与完整初始化评估
-- Daniels 风格每日训练建议
-- VDOT 估算和 E / M / T / I / R 近似训练配速
-- 手动记录篮球、力量、熬夜、加班、疼痛等非手表活动
-- 跑后复盘 HTTP 接口
-- 周 / 月 / 周期总结 HTTP 接口
-- SQLite 本地持久化
-- OpenClaw 可调用的 HTTP 契约
+在 NAS 上新建一个目录，例如 `dn-running-coach`，在里面创建 `docker-compose.yml`，复制下面内容即可：
 
-## 架构
-
-```text
-微信 / QQ
-  -> OpenClaw on NAS
-  -> COROS MCP 中国区
-  -> DN Running Coach HTTP Service
-  -> SQLite 结构化记忆
+```yaml
+services:
+  dn-running-coach:
+    image: ghcr.io/luczzzz/dn_running_coach:latest
+    container_name: dn-running-coach
+    restart: unless-stopped
+    ports:
+      - "8787:8787"
+    environment:
+      HOST: "0.0.0.0"
+      PORT: "8787"
+      RUNNING_COACH_DATA_DIR: "/data/running-coach"
+      RUNNING_COACH_DB: "/data/running-coach/events/running-coach.sqlite"
+      COROS_MCP_ENDPOINT: "https://mcpcn.coros.com/mcp"
+    volumes:
+      - ./data:/data/running-coach
 ```
 
-说明：本服务不直接登录 COROS。推荐由 OpenClaw 调用 COROS MCP，再把标准化后的训练数据传给本服务。
-
-## 技术栈
-
-- Node.js 24+
-- TypeScript
-- Fastify
-- Zod
-- Vitest
-- Node 内置 `node:sqlite`
-- Docker Compose
-
-`node:sqlite` 在 Node 24 中可能打印 `ExperimentalWarning`，不影响当前 MVP/二期功能使用。
-
-## Docker Compose 部署
-
-在 NAS 或服务器上执行：
+启动：
 
 ```bash
-git clone https://github.com/Luczzzz/dn_running_coach.git
-cd dn_running_coach
-docker compose up -d --build
+docker compose up -d
 curl http://127.0.0.1:8787/health
 ```
 
@@ -56,58 +37,96 @@ curl http://127.0.0.1:8787/health
 {"ok":true,"service":"running-coach"}
 ```
 
-默认持久化挂载：
+如果镜像还没有发布到 GHCR，可以先使用源码构建版：
+
+```yaml
+services:
+  dn-running-coach:
+    build: .
+    container_name: dn-running-coach
+    restart: unless-stopped
+    ports:
+      - "8787:8787"
+    environment:
+      HOST: "0.0.0.0"
+      PORT: "8787"
+      RUNNING_COACH_DATA_DIR: "/data/running-coach"
+      RUNNING_COACH_DB: "/data/running-coach/events/running-coach.sqlite"
+      COROS_MCP_ENDPOINT: "https://mcpcn.coros.com/mcp"
+    volumes:
+      - ./data:/data/running-coach
+```
+
+源码构建版需要先把仓库 clone 到 NAS：
+
+```bash
+git clone https://github.com/Luczzzz/dn_running_coach.git
+cd dn_running_coach
+docker compose up -d --build
+```
+
+## 持久化数据
+
+默认挂载：
 
 ```text
 ./data:/data/running-coach
 ```
 
-默认 SQLite 路径：
+SQLite 默认路径：
 
 ```text
 /data/running-coach/events/running-coach.sqlite
 ```
 
-默认环境变量：
+请把 NAS 的 `./data` 目录纳入备份。
+
+## OpenClaw 问答式初始化
+
+初始化不建议让用户手写 JSON。推荐由 OpenClaw 像教练问诊一样逐步提问，你直接用微信 / QQ 回答即可。
+
+### 推荐对话流程
+
+OpenClaw：
 
 ```text
-HOST=0.0.0.0
-PORT=8787
-RUNNING_COACH_DATA_DIR=/data/running-coach
-RUNNING_COACH_DB=/data/running-coach/events/running-coach.sqlite
-COROS_MCP_ENDPOINT=https://mcpcn.coros.com/mcp
+我们来初始化跑步助手。我会问几个问题，然后结合 COROS 近期数据建立你的训练档案。
+第 1 个问题：你的主要目标是 5K、10K、半马、全马，还是健康稳定跑？
 ```
 
-查看日志：
-
-```bash
-docker compose logs -f
-```
-
-停止服务：
-
-```bash
-docker compose down
-```
-
-## 本地开发
-
-```bash
-npm install
-npm test
-npm run build
-npm run dev
-```
-
-默认监听：
+用户回答后，OpenClaw 继续问：
 
 ```text
-http://127.0.0.1:8787
+目标成绩是多少？如果没有明确成绩，可以说“暂时没有”。
 ```
 
-## 首次初始化
+继续问：
 
-如果你已经知道自己的 VDOT，可以直接初始化：
+```text
+你最近有没有可靠比赛成绩或测试跑？例如 5K 23:00、10K 48:00、半马 1:50。没有就说“没有”。
+```
+
+继续问：
+
+```text
+你是否知道自己的 Daniels VDOT？如果知道直接告诉我；不知道就说“不知道”。
+```
+
+继续问：
+
+```text
+最近 7 天有没有篮球、力量训练、熬夜、加班、疼痛或生病？简单描述即可。
+```
+
+最后 OpenClaw：
+
+```text
+我会读取你 COROS 近期跑步和恢复数据，然后完成初始化。
+```
+
+### OpenClaw 汇总后调用
+
+OpenClaw 收集完回答，并通过 COROS MCP 读取近期数据后，调用：
 
 ```bash
 curl -X POST http://127.0.0.1:8787/coach/initialize \
@@ -123,36 +142,9 @@ curl -X POST http://127.0.0.1:8787/coach/initialize \
   }'
 ```
 
-如果你有近期比赛成绩，可以让服务估算 VDOT：
+服务会返回 `message`，OpenClaw 直接发给微信 / QQ 用户。
 
-```bash
-curl -X POST http://127.0.0.1:8787/coach/initialize \
-  -H "Content-Type: application/json" \
-  -d '{
-    "userId": "default",
-    "goalRace": "10K",
-    "goalTimeSeconds": 2700,
-    "knownRaceResult": {
-      "race": "10K",
-      "distanceKm": 10,
-      "timeSeconds": 2700,
-      "occurredAt": "2026-05-19T00:00:00.000Z"
-    },
-    "recentRuns": [],
-    "recentRecovery": []
-  }'
-```
-
-初始化返回会包含：
-
-- `estimatedVdot`
-- `vdotSource`
-- `trainingPaces`
-- `riskFlags`
-- `initialAdvice`
-- `message`
-
-## OpenClaw 接入 COROS MCP
+## 中国区 COROS MCP
 
 中国区 COROS MCP endpoint：
 
@@ -160,12 +152,17 @@ curl -X POST http://127.0.0.1:8787/coach/initialize \
 https://mcpcn.coros.com/mcp
 ```
 
-推荐流程：
+推荐架构：
 
-1. OpenClaw 通过 COROS MCP 读取近期训练和恢复数据。
-2. OpenClaw 把 COROS 原始字段整理成本服务的标准 JSON。
-3. OpenClaw 调用 `/coach/initialize`、`/coach/daily-advice`、`/coach/run-review` 或总结接口。
-4. OpenClaw 把返回的 `message` 发回微信 / QQ。
+```text
+微信 / QQ
+  -> OpenClaw on NAS
+  -> COROS MCP 中国区
+  -> DN Running Coach HTTP Service
+  -> SQLite 结构化记忆
+```
+
+本服务不直接登录 COROS。OpenClaw 负责调用 COROS MCP，把训练数据整理成本服务的标准 JSON。
 
 ## 每日建议
 
@@ -200,8 +197,6 @@ curl -X POST http://127.0.0.1:8787/coach/manual-event \
     }
   }'
 ```
-
-之后再问“今天怎么练”，系统会把篮球负荷纳入判断，通常会把质量课降级为 E 跑。
 
 ## 跑后复盘
 
@@ -279,7 +274,7 @@ curl -X POST http://127.0.0.1:8787/coach/summary/cycle \
 https://vdoto2.com/calculator
 ```
 
-如果官方结果和服务估算不同，建议通过 `/coach/initialize` 传入 `knownVdot` 覆盖。
+如果官方结果和服务估算不同，建议在初始化问答中告诉 OpenClaw 你的官方 VDOT，OpenClaw 会通过 `/coach/initialize` 传入 `knownVdot`。
 
 ## HTTP 接口
 
@@ -301,12 +296,11 @@ docs/openclaw-agent-contract.md
 - `POST /coach/summary/monthly`
 - `POST /coach/summary/cycle`
 
-## 备份建议
+## 本地开发
 
-请定期备份：
-
-```text
-./data/events/running-coach.sqlite
+```bash
+npm install
+npm test
+npm run build
+npm run dev
 ```
-
-如果你在 NAS 上把 `./data` 挂载到独立存储池，建议纳入 NAS 自动备份任务。
