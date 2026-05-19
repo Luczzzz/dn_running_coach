@@ -1,13 +1,19 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { createDailyAdvice } from "../domain/adviceService.js";
-import { ManualEventSchema } from "../domain/types.js";
+import { ManualEventSchema, UserProfileSchema } from "../domain/types.js";
 import type { createRepositories } from "../storage/repositories.js";
 import { formatAdvice } from "../templates/messages.js";
 
 type Repositories = ReturnType<typeof createRepositories>;
 
 export async function registerCoachRoutes(app: FastifyInstance, repos: Repositories) {
+  app.post("/coach/profile", async (request) => {
+    const profile = UserProfileSchema.parse(request.body);
+    repos.profile.save(profile);
+    return { ok: true, profile };
+  });
+
   app.post("/coach/manual-event", async (request) => {
     const body = z
       .object({
